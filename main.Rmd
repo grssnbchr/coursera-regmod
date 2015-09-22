@@ -1,0 +1,76 @@
+---
+title: "Coursera Regression Models"
+author: "Timo Grossenbacher, Data Journalist in Chief, \"Bleifuss Magazine\""
+date: "September 21, 2015"
+output: html_document
+---
+
+## Summary 
+
+What's up, friends of gasoline stench and burning tires? 
+So today we took the effort to finally provide you with the answers you've been waiting for all your life: 
+
+* Is an automatic or manual transmission better for MPG? 
+At first sight, yes. In our dataset, manual cars tend to make more miles per gallon. At second sight, though, it turns out that this is actually due to weight - manual cars are generally a lot lighter than automatic cars. And weight greatly affects miles per gallon, of course. So taking into account weight, the effect of transmission mode becomes insignificant.
+
+* What difference does it actually make? 
+Without weight considered, it makes a difference of around 7 miles per gallon. With weight considered, and that's what we should take as the "truth": Nothing at all. Although it's probably best for the environment to drive a light car that has manual transmission. Right? Also more fun, too.
+
+## Analysis
+
+For the nerds among you (we know that true mechanics are actually car hackers...), the analysis in detail:
+
+### Load the data
+```{r, echo = F, warning = F, message = F}
+library(dplyr)
+library(datasets)
+attach(mtcars)
+summary(mtcars)
+# we really don't need all variables, let's only keep cyl, wt, am, gear, mpg and horsepower
+mtcars_mod <- mtcars %>% select(cyl, wt, am, gear, mpg, hp)
+```
+
+### Exploratory Data Analysis
+
+```{r echo = F, warning = F, message = F}
+# scatterplot matrix: probably the mechanic's best choice for finding quick correlations
+library(GGally)
+ggscatmat(mtcars_mod)
+```
+
+There seems to be a correlation between weight and mpg, for example, but also between transmission and mpg -> the stuff we're interested in. So let's explore this more deeply. 
+
+### Analysis
+
+#### Simple
+```{r}
+# simple model, am as sole regressor
+summary(lm(mpg ~ factor(am), data = mtcars_mod))
+```
+Yes, looks like transmission mode makes a difference. Average MPG for automatic transmission is 17.15 mpg, that for manual transmission is roughly `r 17.15 + 7.25` mpg, thus it makes an average difference of 7.25 mpg, and this difference is significant on the 95%-confidence level.
+
+BUT WAIT, transmission is also strongly correlated with weight - looks like automatic cars are generally heavier (which makes sense, most trucks, for example, are automatic). And weight is strongly negatively correlated with mpg, so it might be an important confounder. Let's explore this.
+
+```{r echo = F, warning = F, message = F}
+library(ggplot2)
+library(magrittr)
+# make a new factor variable for weight
+mtcars_mod %<>% mutate(wt_binary = as.integer(wt > median(wt)))
+head(mtcars_mod)
+# now heavier-than-average cars are marked with a 1, lighter-than-average with a 0
+# visualize 
+ggplot(mtcars_mod, aes(y = mpg, x = am, color = factor(wt_binary))) + geom_point()
+```
+
+The plot reaffirms this. Most manual cars are indeed lighter (0). Let's specify a model which considers both regressors.
+
+```{r}
+summary(lm(mpg ~ factor(am) + wt, data = mtcars_mod))
+```
+
+Our fears are justified. When weight is considered too, the effect of transmission becomes not only very very weak but also absolutely insignificant. 
+
+## Appendix
+
+### Inference analysis
+### Residual plots
